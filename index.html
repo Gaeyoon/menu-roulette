@@ -25,12 +25,29 @@
   button:disabled { opacity:.6; cursor:default; }
   .result { margin-top:10px; min-height:22px; font-size:15px; font-weight:700; }
   .cats { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
-  .cats label { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:2px 8px; cursor:pointer; user-select:none; }
+  .cats { gap:6px; }
+  .cats label { cursor:pointer; user-select:none; }
   .cats input { display:none; }
-  .cats input:checked + span { color:var(--fg); font-weight:600; }
+  .cats span { display:inline-block; font-size:12px; padding:4px 10px; border-radius:999px;
+    border:1px solid var(--line); color:var(--muted); background:transparent; opacity:.55;
+    text-decoration:line-through; transition:all .15s; }
+  .cats input:checked + span { background:var(--accent); border-color:var(--accent); color:#fff;
+    font-weight:700; opacity:1; text-decoration:none; box-shadow:0 1px 3px rgba(35,131,226,.35); }
+  .cats input:checked + span::before { content:"✓ "; }
+  #fx { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; }
+  .pop { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:6;
+    pointer-events:none; opacity:0; transition:opacity .2s; }
+  .pop.show { opacity:1; pointer-events:auto; }
+  .card { background:var(--bg); border:2px solid var(--accent); border-radius:14px; padding:16px 22px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18); transform:scale(.6); transition:transform .35s cubic-bezier(.2,1.6,.4,1); }
+  .pop.show .card { transform:scale(1); }
+  .card small { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .card b { font-size:26px; }
 </style>
 </head>
 <body>
+<canvas id="fx"></canvas>
+<div class="pop" id="pop"><div class="card"><small>🎉 오늘의 메뉴</small><b id="popText"></b></div></div>
 <div class="wrap">
   <h1>🍽️ 오늘 뭐 먹지?</h1>
   <div class="wheel">
@@ -88,8 +105,43 @@ document.getElementById("spin").onclick = () => {
   const target = 360 - (idx * seg + seg / 2);
   rot += 360 * 5 + ((target - (rot % 360)) + 360) % 360;
   c.style.transform = `rotate(${rot}deg)`;
-  setTimeout(() => { res.textContent = `오늘은 ${items[idx]} 어때요? 😋`; btn.disabled = false; btn.textContent = "다시 돌리기"; spinning = false; }, 4100);
+  setTimeout(() => {
+    res.textContent = `오늘은 ${items[idx]} 어때요? 😋`;
+    document.getElementById("popText").textContent = items[idx];
+    const pop = document.getElementById("pop"); pop.classList.add("show");
+    confetti();
+    setTimeout(() => pop.classList.remove("show"), 2600);
+    btn.disabled = false; btn.textContent = "다시 돌리기"; spinning = false;
+  }, 4100);
 };
+document.getElementById("pop").onclick = e => e.currentTarget.classList.remove("show");
+function confetti() {
+  const fx = document.getElementById("fx"), g = fx.getContext("2d");
+  const W = fx.width = innerWidth * devicePixelRatio, H = fx.height = innerHeight * devicePixelRatio;
+  const cols = ["#eb5757","#f2c94c","#27ae60","#2f80ed","#9b51e0","#f2994a","#56ccf2"];
+  const ps = [];
+  for (let b = 0; b < 3; b++) {
+    const ox = W * (0.25 + 0.25 * b), oy = H * 0.5;
+    for (let i = 0; i < 70; i++) {
+      const a = Math.random() * Math.PI * 2, sp = (4 + Math.random() * 9) * devicePixelRatio;
+      ps.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 4 * devicePixelRatio,
+        s: (4 + Math.random() * 5) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - .5) * .4,
+        c: cols[(Math.random() * cols.length) | 0], d: b * 8 });
+    }
+  }
+  let t = 0;
+  (function tick() {
+    g.clearRect(0, 0, W, H); let alive = false;
+    for (const p of ps) {
+      if (t < p.d) { alive = true; continue; }
+      p.vy += 0.25 * devicePixelRatio; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      if (p.y < H + 20) alive = true;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c;
+      g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); g.restore();
+    }
+    t++; if (alive && t < 240) requestAnimationFrame(tick); else g.clearRect(0, 0, W, H);
+  })();
+}
 build();
 </script>
 </body>
