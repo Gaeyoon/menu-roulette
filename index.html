@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘의 메뉴 룰렛</title>
+<style>
+  :root { --bg:#ffffff; --fg:#37352f; --muted:#787774; --line:#e9e9e7; --accent:#2383e2; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#191919; --fg:#e6e6e4; --muted:#9b9a97; --line:#2f2f2f; } }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:340px; margin:0 auto; padding:14px 12px 16px; text-align:center; }
+  h1 { font-size:15px; margin:0 0 10px; font-weight:700; }
+  .wheel { position:relative; width:100%; aspect-ratio:1; }
+  canvas { width:100%; height:100%; transition:transform 4s cubic-bezier(.17,.67,.12,1); }
+  .pin { position:absolute; top:-4px; left:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:11px solid transparent; border-right:11px solid transparent; border-top:20px solid #eb5757;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+  .hub { position:absolute; inset:0; margin:auto; width:22%; height:22%; border-radius:50%;
+    background:var(--bg); border:2px solid var(--line); display:flex; align-items:center; justify-content:center;
+    font-size:22px; }
+  button { margin-top:12px; width:100%; padding:10px; border:0; border-radius:8px; background:var(--accent);
+    color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .result { margin-top:10px; min-height:22px; font-size:15px; font-weight:700; }
+  .cats { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
+  .cats label { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:2px 8px; cursor:pointer; user-select:none; }
+  .cats input { display:none; }
+  .cats input:checked + span { color:var(--fg); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍽️ 오늘 뭐 먹지?</h1>
+  <div class="wheel">
+    <canvas id="c" width="600" height="600"></canvas>
+    <div class="pin"></div>
+    <div class="hub">🍚</div>
+  </div>
+  <button id="spin">돌리기</button>
+  <div class="result" id="result"></div>
+  <div class="cats" id="cats"></div>
+</div>
+<script>
+const MENUS = {
+  "한식": ["김치찌개","된장찌개","제육볶음","비빔밥","순두부찌개","국밥","불고기","냉면","칼국수","닭갈비"],
+  "중식": ["짜장면","짬뽕","마라탕","탕수육","볶음밥"],
+  "일식": ["초밥","라멘","돈카츠","우동","규동"],
+  "양식": ["파스타","햄버거","피자","샐러드","리조또"],
+  "분식": ["떡볶이","김밥","라볶이","쫄면"],
+  "아시안": ["쌀국수","팟타이","카레","분짜"]
+};
+const COLORS = ["#f7c8c8","#fbe3b6","#fdf1a8","#cde8c4","#c3e0f0","#d9cff3","#f5cfe5","#d6ece8"];
+const enabled = new Set(Object.keys(MENUS));
+let items = [], rot = 0, spinning = false;
+const c = document.getElementById("c"), ctx = c.getContext("2d");
+const catsEl = document.getElementById("cats");
+for (const k of Object.keys(MENUS)) {
+  const l = document.createElement("label");
+  l.innerHTML = `<input type="checkbox" checked><span>${k}</span>`;
+  l.querySelector("input").onchange = e => { e.target.checked ? enabled.add(k) : enabled.delete(k); if (!enabled.size) { enabled.add(k); e.target.checked = true; } build(); };
+  catsEl.appendChild(l);
+}
+function build() {
+  const all = [...enabled].flatMap(k => MENUS[k]);
+  items = all.sort(() => Math.random() - .5).slice(0, 12);
+  draw();
+}
+function draw() {
+  const n = items.length, r = 290, cx = 300, cy = 300, a = 2 * Math.PI / n;
+  ctx.clearRect(0, 0, 600, 600);
+  items.forEach((t, i) => {
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, i * a - Math.PI / 2, (i + 1) * a - Math.PI / 2);
+    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(i * a + a / 2 - Math.PI / 2);
+    ctx.textAlign = "right"; ctx.fillStyle = "#37352f"; ctx.font = "600 30px -apple-system, 'Apple SD Gothic Neo', sans-serif";
+    ctx.fillText(t, r - 22, 10); ctx.restore();
+  });
+}
+document.getElementById("spin").onclick = () => {
+  if (spinning) return; spinning = true;
+  const btn = document.getElementById("spin"), res = document.getElementById("result");
+  btn.disabled = true; res.textContent = "";
+  const n = items.length, idx = Math.floor(Math.random() * n), seg = 360 / n;
+  const target = 360 - (idx * seg + seg / 2);
+  rot += 360 * 5 + ((target - (rot % 360)) + 360) % 360;
+  c.style.transform = `rotate(${rot}deg)`;
+  setTimeout(() => { res.textContent = `오늘은 ${items[idx]} 어때요? 😋`; btn.disabled = false; btn.textContent = "다시 돌리기"; spinning = false; }, 4100);
+};
+build();
+</script>
+</body>
+</html>
